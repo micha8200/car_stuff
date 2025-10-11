@@ -1,0 +1,19 @@
+{
+	"_schemaVersion": "1.0.0",
+	"plotEnergy":
+	{
+		"inputs":
+		[
+			{"name":"name","kind":"required","type":["file=*.csv"]},
+			{"name":"tags", "kind":"optional","repeating" : true, "type":"choices={'+vel','-vel','-save', '-close', '-raw', '-clear', '-plotenergy', '-plotdrive', '-temp30', '-idle2.5kw'}"}
+		]
+	},
+	"plotDrive":
+	{
+		"inputs":
+		[
+			{"name":"name","kind":"required","type":["file=*.csv"]},
+			{"name":"tags", "kind":"optional","repeating" : true,"type":"choices={'+vel','-vel','-save', '-close', '-raw', '-clear', '-plotenergy', '-plotdrive', '-temp30', '-idle2.5kw'}"}
+		]
+	}
+}
