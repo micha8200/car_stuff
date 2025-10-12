@@ -1,5 +1,5 @@
 function plotEnergy(csvFile, varargin)
-set(groot, 'defaultLegendItemHitFcn', @myhitfn);
+set(groot, 'defaultLegendItemHitFcn', @LegendItemHitFnc);
 % plotEnergy my_file.csv -pe -pd -idle3kw -temp35
 % appendTables
 if nargin<2
@@ -309,23 +309,36 @@ if plotEnergy
     if isempty(outTemp)
         outTemp = mean(tb.OutsideTempC);
     end
-    [Eloss, Eloss_c] = calcEnLoss(mc, vels2test, const_pow, outTemp, mean(tb.InsideTempC));
-    plot(vels2test, Eloss, 'displayn', 'theoretical efficiency')
+    [Eloss, Eloss_c]        = calcEnLoss(mc, vels2test, const_pow, outTemp, mean(tb.InsideTempC));
+    [pp, xs_th, ys_th]      = calc_polynom(vels2test, Eloss);
+    plot(xs_th, ys_th, 'displayn', 'theoretical efficiency')
     plot(vels2test, Eloss_c, 'displayn', sprintf('loss to const power (%1.1fkW)', const_pow/1e3), 'visible', 'off')
     
-    p_epa = hggroup('displayname', 'EPA', 'visible', 'off');
-    p_wltp = hggroup('displayname', 'WLTP', 'visible', 'off');
-    [~, ixmin]=min(Eloss);
-    vel_epa     = interp1(Eloss(ixmin:end), vels2test(ixmin:end), mc.epa_wh_per_km);
-    vel_wltp    = interp1(Eloss(ixmin:end), vels2test(ixmin:end), mc.wltp_wh_per_km);
-    x = [vels2test([ 1 end]) nan vel_epa vel_epa];
-    y = [mc.epa_wh_per_km mc.epa_wh_per_km nan mc.epa_wh_per_km 0];
+    p_epa       = hggroup('displayname', 'EPA', 'visible', 'off');
+    p_wltp      = hggroup('displayname', 'WLTP', 'visible', 'off');
+    
+    vel_epa     = poly_intersect(pp, mc.epa_wh_per_km); vel_epa = max(vel_epa);
+    vel_wltp    = poly_intersect(pp, mc.wltp_wh_per_km); vel_wltp = max(vel_wltp);
+    x = vels2test([ 1 end]);
+    y = [mc.epa_wh_per_km mc.epa_wh_per_km];
+    if ~isempty(vel_epa)
+        x = [x nan vel_epa vel_epa];
+        y = [y nan mc.epa_wh_per_km 0];
+    end
     plot(x, y, ':', 'displayn', 'EPA', 'linewidth', 1.5, 'Parent', p_epa);
-    x = [vels2test([ 1 end]) nan vel_wltp vel_wltp];
-    y = [mc.wltp_wh_per_km mc.wltp_wh_per_km nan mc.wltp_wh_per_km 0];
+    x = [vels2test([ 1 end])];
+    y = [mc.wltp_wh_per_km mc.wltp_wh_per_km ];
+    if ~isempty(vel_wltp)
+        x = [x nan vel_wltp vel_wltp];
+        y = [y nan mc.wltp_wh_per_km 0];
+    end
     plot(x, y, ':', 'displayn', 'WLTP', 'linewidth', 1.5, 'Parent', p_wltp)
-    text(vel_epa, 0, sprintf('EPA-%1.0fkm/h', vel_epa), 'Rotation', 30, 'Parent', p_epa);
-    text(vel_wltp, 0, sprintf('WLTP-%1.0fkm/h', vel_wltp), 'Rotation', 30, 'Parent', p_wltp);
+    if ~isempty(vel_epa)
+        text(vel_epa, 0, sprintf('EPA-%1.0fkm/h', vel_epa), 'Rotation', 30, 'Parent', p_epa);
+    end
+    if ~isempty(vel_wltp)
+        text(vel_wltp, 0, sprintf('WLTP-%1.0fkm/h', vel_wltp), 'Rotation', 30, 'Parent', p_wltp);
+    end
     ss1 = scatter(tb.Speedkmh, -dE_dx*1e3, '.', 'DisplayName', 'efficiency-velocity samples', 'Parent',p_vel_eff);
     
     ylabel('Energy Usage [Wh/km]')
@@ -386,6 +399,26 @@ end
 
 %% service functions
 
+function [p, xs, ys]=calc_polynom(vels2test, Eloss)
+nd = 9;
+p = fliplr(polyfit(vels2test, Eloss, nd));
+
+N = 100;
+velmin = min(vels2test);
+velmax = max(vels2test);
+xs = linspace(velmin, velmax, N);
+ys = p*(repmat((xs)', [1, nd+1]).^(0:nd))';
+ok = xs>=velmin & xs<=velmax;
+xs = xs(ok);
+ys = ys(ok);
+end
+
+function x_int = poly_intersect(p, val)
+p(1) = p(1)-val;
+rs = roots(fliplr(p));
+x_int = rs(imag(rs)==0 & rs<200 & rs>0);
+end
+
 function [en_loss, en_loss_c] = calcEnLoss(specs, vel, const_pwr, outTemp, intemp)
 
 if nargin<3
@@ -398,30 +431,9 @@ if nargin<5
     intemp = 22; % in Watts
 end
 % wh/km!
-Ts    	= [10:5:40];
+Ts    	= (10:5:40)'; % temperatures
 rhos    = [1.24210000000000;1.21880000000000;1.19570000000000;1.17280000000000;1.14970000000000;1.12630000000000;1.10240000000000];
 
-% deltaTemp = intemp - outTemp; % positive is to heat up
-% 
-% if deltaTemp>0  % heating needed?
-%     deltaE = max(deltaTemp-8, 0)*150;
-% else % cooling needed
-%     deltaE = -deltaTemp*150;
-% end
-% fprintf('assumed constant operations power: %1.1fkWh', const_pwr/1e3)
-% if deltaTemp>0 
-%     fprintf(' + heating %1.1fkWh', deltaE/1e3);
-% else
-%     fprintf(' + cooling %1.1fkWh', deltaE/1e3);
-% end
-% fprintf('(deltaT~%1.0fC)\n', deltaTemp);
-% const_pwr = const_pwr + deltaE;
-
-% fprintf('cooling/heating + opertion adding %1.1fkW (deltaT=%1.0fC)\n', const_pwr/1e3, deltaTemp)
-
-% mass[kg]
-% vel[km/h]
-% rho = GP.rho; % 1.21; % kg/m^3 % change to temperature dependant?
 rho = interp1(Ts, rhos, outTemp, 'linear', 'extrap');
 
 % rho = 1.204;
