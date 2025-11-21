@@ -12,7 +12,7 @@ if strcmpi(modelType,'3') && modelYear<=2023 && modelYear>=2021 && strcmpi(motor
     sepcs.kwh_in_new_battery    = 60; % 60.5
     sepcs.drag_coeff            = 0.23;
     sepcs.front_cross_section   = 2.22; % 3: 2.6 Y:3.11;
-    sepcs.rolling_res           = 0.0091; % Aero/Sport 0.0091  performance 0.011
+    sepcs.rolling_res           = 0.0095; % Aero/Sport 0.0091  performance 0.011
 
     sepcs.epa_wh_per_km         = 137.8; % 60/437
     sepcs.epa_range             = 439; % 

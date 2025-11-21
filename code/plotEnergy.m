@@ -52,9 +52,14 @@ end
 vin = f(1:17);
 mc = tesla_models_specs(vin); % model consants
 
+
+
 tb = readtable(csvFile); 
 tb.Properties.VariableNames = strrep(tb.Properties.VariableNames, '_', '');
 
+eval_bat_cap = mean(tb.EnergyRemainingkWh./tb.BatteryLevel)*1e2;
+
+mc.kwh_in_new_battery = eval_bat_cap;
 % 
 % if ~any(ismember(tb.Properties.VariableNames, 'Speedkmperh')) && any(contains(lower(tb.Properties.VariableNames), 'speed'))
 %     ix = find(contains(lower(tb.Properties.VariableNames), 'speed') & contains(lower(tb.Properties.VariableNames), 'km'));
@@ -77,10 +82,16 @@ tb.Properties.VariableNames = strrep(tb.Properties.VariableNames, '_', '');
 ixnan = isnan(tb.EnergyRemainingkWh) & ~isnan(tb.BatteryRangekm);
 tb.EnergyRemainingkWh(ixnan) = tb.BatteryRangekm(ixnan)/mc.epa_range*mc.kwh_in_new_battery;
 
-tb.kwh_deltaE   = [0; diff(tb.EnergyRemainingkWh)];
-tb.km_deltaX    = [0; diff(tb.Odometerkm)];
-tb.s_deltaT     = [0; diff(tb.TimestampIDT)];
-
+forw = 0;
+if forw
+    tb.kwh_deltaE   = [0; diff(tb.EnergyRemainingkWh)];
+    tb.km_deltaX    = [0; diff(tb.Odometerkm)];
+    tb.s_deltaT     = [0; diff(tb.TimestampIDT)];
+else
+    tb.kwh_deltaE   = [diff(tb.EnergyRemainingkWh);0];
+    tb.km_deltaX    = [diff(tb.Odometerkm);0];
+    tb.s_deltaT     = [diff(tb.TimestampIDT);0];
+end
 % ix = find(seconds(tb.s_deltaT)>30 | tb.km_deltaX>2 | tb.kwh_deltaE>2);
 ix = find(seconds(tb.s_deltaT)>50 | tb.km_deltaX>5 | tb.kwh_deltaE>2);
 
@@ -88,15 +99,15 @@ fprintf('total paths before filter : %1.0fkm\n', sum(tb.km_deltaX));
 tb(ix,:) = [];
 fprintf('total paths after filter  : %1.0fkm\n', sum(tb.km_deltaX));
 
-if any(contains(lower(varargin), 'vel'))
-    if any(contains(varargin, '+'))
-        tb = sortrows(tb, 'Speedkmh', 'descend');
-    else
-        tb = sortrows(tb, 'Speedkmh');
-    end
 
-end
-
+% % % since velocity is sample in low rate (we dont know if samples as
+% % % average/beginning/end/max/min of time bin), we need to disperse the data
+% % % points as much as possible to "diverge" statistics to all possible corners
+% % if any(contains(lower(varargin), 'vel'))
+% %     tb1 = [sortrows(tb, 'Speedkmh', 'descend');sortrows(tb, 'Speedkmh');tb];
+% %     % clear tb1;
+% % end
+assignin('base', 'tb', tb);
 %%
 
 loesmooth       = @(y) smooth(y, 0.1, 'loess');
@@ -287,6 +298,9 @@ disp(tb2)
 %% -------------- plot efficiency --------------
 
 if plotEnergy
+
+    tb = tb1;
+
     f = figure('name', mc.name);
     hold on
     ok = ~isnan(slope_e) & slope>0;
