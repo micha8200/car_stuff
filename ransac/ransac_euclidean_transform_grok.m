@@ -22,8 +22,8 @@ function [R, t, ixBtoA, ixAtoB] = ransac_euclidean_transform_grok(pointsA, Na, p
 
     is_optim = 1;
     if is_optim
-        dA          = sqdist(pointsA(:, 1:Na)');
-        dB          = sqdist(pointsB(:, 1:Nb)');
+        dA          = sqdist(pointsA(:, 1:Na)', dist_euclid);
+        dB          = sqdist(pointsB(:, 1:Nb)', dist_euclid);
         dABabs      = abs(dB-dA');
         [dAB, ind]  = stalinsort(dABabs(:), 2*dist_thresh); % upon reaching list where pair distances above 2THRESH it is pointless to test them
         % [dAB, ind]=sort(dABabs(:));

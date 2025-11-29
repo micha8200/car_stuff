@@ -41,8 +41,8 @@ set(groot, 'defaultLegendItemHitFcn', @LegendItemHitFnc);
 
 
 %% plot figures
-iseucl = 0;
-isplot = 1;
+iseucl = 1;
+isplot = 0;
 ix3r    = randsample(1:numPoints, numPoints); % shuffle points
 for i=1:2
     % complexity for eachobserver:
