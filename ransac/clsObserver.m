@@ -25,6 +25,7 @@ classdef clsObserver < handle
         end
 
         function [ae, ix] = addNoiseFeatures(obj, ae, N, std)
+            % N - number of fabicated points to add
             if nargin<4
                 std = [1 1];
             end

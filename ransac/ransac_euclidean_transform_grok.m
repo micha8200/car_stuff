@@ -25,14 +25,15 @@ function [R, t, ixBtoA, ixAtoB] = ransac_euclidean_transform_grok(pointsA, Na, p
         dA          = sqdist(pointsA(:, 1:Na)', dist_euclid);
         dB          = sqdist(pointsB(:, 1:Nb)', dist_euclid);
         dABabs      = abs(dB-dA');
-        [dAB, ind]  = stalinsort(dABabs(:), 2*dist_thresh); % upon reaching list where pair distances above 2THRESH it is pointless to test them
+        % [dAB, ind, nab]  = filterthresh(dABabs(:), 2*dist_thresh); % upon reaching list where pair distances above 2THRESH it is pointless to test them
+        [dAB, ind, nab]  = filterthresh_old(dABabs(:), 2*dist_thresh);
         % [dAB, ind]=sort(dABabs(:));
         % dAB<dist_thresh % relevant points
         listA       = find(tril(ones(Na), -1));
         listB       = find(tril(ones(Nb), -1));
     end
     
-    for iter = 1:length(ind)
+    for iter = 1:nab
 
         if is_optim
             if dAB(iter)>2*dist_thresh % protection. max(dAB) should not exceed 2*dist_thresh due to stalinsort
@@ -168,9 +169,9 @@ function [R, t, ixBtoA, ixAtoB] = ransac_euclidean_transform_grok(pointsA, Na, p
     t = best_t;
 end
 
-function [valss, ix]=stalinsort(vals, thresh)
+function [valss, ix, N]=filterthresh_old(vals, thresh)
 valss   = zeros(length(vals), 1);
-ix      = zeros(length(vals), 1);
+ix      = zeros(length(vals), 1, 'int32');
 j       = int32(0);
 for i=1:length(vals)
     if vals(i)<thresh
@@ -179,8 +180,32 @@ for i=1:length(vals)
         ix(j)       = i;
     end
 end
+N = j;
 valss = valss(1:j);
 ix = ix(1:j);
+end
+
+function [valss, ix, N]=filterthresh(vals, thresh)
+valss   = zeros(length(vals), 1);
+ix      = int32(1:length(vals));
+ix2     = int32(1:length(vals));
+ok      = vals<=thresh;
+N       = sum(ok);
+valss(1:N)      = vals(ok);
+ix(1:N)         = ix2(ok);
+
+% valss   = zeros(length(vals), 1);
+% ix      = zeros(length(vals), 1, 'int32');
+% j       = int32(0);
+% for i=1:length(vals)
+%     if vals(i)<thresh
+%         j(1)        = j + 1;
+%         valss(j)    = vals(i);
+%         ix(j)       = i;
+%     end
+% end
+% valss = valss(1:j);
+% ix = ix(1:j);
 end
 
 function test

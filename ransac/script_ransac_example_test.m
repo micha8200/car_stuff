@@ -22,7 +22,13 @@ nRansacIter = log(1-p)/log(1-(1-e)^s); % nIter>= that number
 % [files, products] = matlab.codetools.requiredFilesAndProducts('script_ransac_example_test.m');
 % disp(files')
 %%
-numPoints   = 14;
+% BAD results!
+% 6; 8
+% 3; 10
+
+numPoints   = 14; % 14
+Nfab        = 8;
+degNoiseStd = 4;
 r0          = 85; % distance to observers
 numObserv   = 2;
 tscale      = 10; % object feature displacement scale
@@ -30,7 +36,7 @@ oscale      = 30; % observer displacement scale
 obsFOVdeg   = [6 8];
 
 
-YPRE         = [1.5 2 2; -1.5 -0.77 4]*pi/180;
+YPRE        = [1.5 2 2; -1.5 -0.77 4]*pi/180;
 
 seed        = 8; % 2 8
 rng(seed)
@@ -41,10 +47,11 @@ set(groot, 'defaultLegendItemHitFcn', @LegendItemHitFnc);
 
 
 %% plot figures
-iseucl = 1;
-isplot = 0;
-ix3r    = randsample(1:numPoints, numPoints); % shuffle points
-for i=1:2
+iseucl          = 1;
+isplot          = 1;
+isconvert2uv    = 0;
+ix3r            = randsample(1:numPoints, numPoints); % shuffle points
+for i=1
     % complexity for eachobserver:
     % Na(Na-1) point pairs in A vs Nb(Nb-1) point pairs in B
     % O(N^4) pair-vs-pair full transformation check (norm, dot, cross)
@@ -60,8 +67,9 @@ for i=1:2
 
     obj                     = clsObserver(obs(i,:), [], YPRE(i,:), obsFOVdeg(i));
     ae                      = obj.getPOV(points, 0); % object features, as seen by observer
+    % LOS                     = obj.getLOS(points);
     ae3                     = obj.getPOV(points(ix3r,:), 1); % object features, in relation to observer (cast 3D data on observer)
-    [ae, isns]              = obj.addNoiseFeatures(ae, 12, 2); % N, std for noise
+    [ae, isns]              = obj.addNoiseFeatures(ae, Nfab, degNoiseStd); % N, std for noise
     [rectWin, isvis]        = obj.getLOS(ae, 'mean');
 
 
@@ -73,10 +81,19 @@ for i=1:2
     Nb          = sum(isvis);
     pA(:, 1:Na) = ae3';
     pB(:, 1:Nb) = ae(isvis,:)';
+    
+    if isconvert2uv
+        pA = ae2uv_local(pA);
+        pB = ae2uv_local(pB);
+    end
+    fprintf('\n\n----\n')
+
     [R, t, iBtoA, iAtoB]    = ransac_euclidean_transform_grok(pA,Na, pB, Nb, 0.5, iseucl);
     toc
     ae3r                    = (R*ae3' + t)';
-
+    
+    Rangle = atan2d(R(2, 1), R(1,1));
+    fprintf('chosen rotation: %1.0f hits   %1.1f degrees\n', sum(iBtoA>0), Rangle)
     if isplot
         ff      = figure();
         sb(1)   = subplot(2,3,1);hold on;
@@ -121,4 +138,16 @@ for i=1:2
         % axis equal;
         legend('show', 'Location','best')
     end
+end
+
+
+
+%%
+
+
+function uv = ae2uv_local(ae)
+sinel   = sin(ae(2,:));
+cosel   = cos(ae(2,:)); 
+sinaz   = sin(ae(1,:));
+uv      = [cosel.*sinaz; sinel];
 end
