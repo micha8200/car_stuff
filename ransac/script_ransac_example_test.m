@@ -26,8 +26,8 @@ nRansacIter = log(1-p)/log(1-(1-e)^s); % nIter>= that number
 % 6; 8
 % 3; 10
 
-numPoints   = 14; % 14
-Nfab        = 8;
+numPoints   = 7; % 14
+Nfab        = 9;
 degNoiseStd = 4;
 r0          = 85; % distance to observers
 numObserv   = 2;
@@ -38,7 +38,7 @@ obsFOVdeg   = [6 8];
 
 YPRE        = [1.5 2 2; -1.5 -0.77 4]*pi/180;
 
-seed        = 8; % 2 8
+seed        = 1; % 2 8
 rng(seed)
 points = rand(numPoints, 3) * tscale + rand(1, 3)*r0 ;
 obs = rand(numObserv, 3) * oscale ;
@@ -92,7 +92,11 @@ for i=1
     toc
     ae3r                    = (R*ae3' + t)';
     
-    Rangle = atan2d(R(2, 1), R(1,1));
+    Rangle      = atan2d(R(2, 1), R(1,1));
+    R3          = eye(3);
+    R3(1:2,1:2) = R;
+    ypr         = rad2deg(rotm2eulerZYX(R3));
+
     fprintf('chosen rotation: %1.0f hits   %1.1f degrees\n', sum(iBtoA>0), Rangle)
     if isplot
         ff      = figure();

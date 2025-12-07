@@ -29,8 +29,11 @@ classdef clsObserver < handle
             if nargin<4
                 std = [1 1];
             end
-            LOS = mean(ae, 1);
-            ae1 = LOS + std.*randn(N, 2);
+
+            % LOS = mean(ae, 1);
+            % ae1 = LOS + std.*randn(N, 2);
+            losRect = obj.getLOS(ae);
+            ae1 = losRect(1:2) + rand(N, 2).*losRect(3:4);
             ix  = [false(size(ae, 1), 1); true(N, 1)];
             ae = [ae;ae1];
             
