@@ -6,13 +6,17 @@ function [R, t, ixBtoA, ixAtoB] = ransac_euclidean_transform_grok(pointsA, Na, p
     % pointsA: 2xNa matrix, each column is a point [x; y]
     % pointsB: 2xNb matrix, each column is a point [x; y]
     % dist_thresh: distance threshold for inliers
-
+    nMaxN = 30;
     R           = eye(2);
     t           = zeros(2, 1);
-    ixBtoA      = zeros(1, Nb);
-    ixAtoB      = zeros(1, Na);    
-    inlier_pa   = zeros(2, min(Nb, Na));
-    inlier_pb   = zeros(2, min(Nb, Na));
+    ixBtoA      = zeros(1, nMaxN, 'int32');
+    ixAtoB      = zeros(1, nMaxN, 'int32');    
+    inlier_pa   = zeros(2, nMaxN);
+    inlier_pb   = zeros(2, nMaxN);
+    listA       = zeros(1, nMaxN, 'int32');
+    listB       = zeros(1, nMaxN, 'int32');
+    pointsA_trans = zeros(2, nMaxN);
+
     if Na==0 || Nb==0
         return
     end
@@ -20,33 +24,23 @@ function [R, t, ixBtoA, ixAtoB] = ransac_euclidean_transform_grok(pointsA, Na, p
     best_R = eye(2);
     best_t = zeros(2, 1);
 
-    is_optim = 1;
-    if is_optim
-        dA          = sqdist(pointsA(:, 1:Na)', dist_euclid);
-        dB          = sqdist(pointsB(:, 1:Nb)', dist_euclid);
-        dABabs      = abs(dB-dA');
-        % [dAB, ind, nab]  = filterthresh(dABabs(:), 2*dist_thresh); % upon reaching list where pair distances above 2THRESH it is pointless to test them
-        [dAB, ind, nab]  = filterthresh_old(dABabs(:), 2*dist_thresh);
-        % [dAB, ind]=sort(dABabs(:));
-        % dAB<dist_thresh % relevant points
-        listA       = find(tril(ones(Na), -1));
-        listB       = find(tril(ones(Nb), -1));
-    end
+    dA          = sqdist(pointsA(:, 1:Na)', dist_euclid);
+    dB          = sqdist(pointsB(:, 1:Nb)', dist_euclid);
+    dABabs      = abs(dB-dA');
+    [dAB, ind, nab]  = filterthresh(dABabs(:), 2*dist_thresh); % upon reaching list where pair distances above 2THRESH it is pointless to test them
+    % [dAB, ind]=sort(dABabs(:));
+    % dAB<dist_thresh % relevant points
+    listA       = mytril(listA, Na);
+    listB       = mytril(listB, Nb);
     
     for iter = 1:nab
-
-        if is_optim
-            if dAB(iter)>2*dist_thresh % protection. max(dAB) should not exceed 2*dist_thresh due to stalinsort
-                break
-            end
-            [iB, iA] = ind2sub(size(dABabs), ind(iter));
-            % index iA in self-dist group A will point to the relevant pair
-            [idxA(1), idxA(2)]=ind2sub([Na Na], listA(iA));
-            [idxB(1), idxB(2)]=ind2sub([Nb Nb], listB(iB));
-        else % basic: random permutation of 2 points from pool of Na/Nb
-            idxA = randperm(Na, 2);
-            idxB = randperm(Nb, 2);
+        if dAB(iter)>2*dist_thresh % protection. max(dAB) should not exceed 2*dist_thresh due to stalinsort
+            break
         end
+        [iB, iA] = ind2sub(size(dABabs), ind(iter));
+        % index iA in self-dist group A will point to the relevant pair
+        [idxA(1), idxA(2)]=ind2sub([Na Na], listA(iA));
+        [idxB(1), idxB(2)]=ind2sub([Nb Nb], listB(iB));
         % Sample 2 distinct points from A
         p1 = pointsA(:, idxA(1));
         p2 = pointsA(:, idxA(2));
@@ -113,7 +107,7 @@ function [R, t, ixBtoA, ixAtoB] = ransac_euclidean_transform_grok(pointsA, Na, p
         end
     end
     
-    fprintf('ran for %1.0f iterations\n', iter)
+    % fprintf('ran for %1.0f iterations\n', iter)
     % Refine using all inliers if possible
     if best_inliers >= 2
         % Transform A with best model
@@ -185,6 +179,18 @@ valss = valss(1:j);
 ix = ix(1:j);
 end
 
+function list1 = mytril(list1, N)
+k = int32(0);
+for i=1:N
+    for j=1:N
+        if i<j
+            k = k + 1;
+            list1(k) = sub2ind([N N], j, i);
+        end
+    end
+end
+end
+
 function [valss, ix, N]=filterthresh(vals, thresh)
 valss   = zeros(length(vals), 1);
 ix      = int32(1:length(vals));
@@ -193,19 +199,6 @@ ok      = vals<=thresh;
 N       = sum(ok);
 valss(1:N)      = vals(ok);
 ix(1:N)         = ix2(ok);
-
-% valss   = zeros(length(vals), 1);
-% ix      = zeros(length(vals), 1, 'int32');
-% j       = int32(0);
-% for i=1:length(vals)
-%     if vals(i)<thresh
-%         j(1)        = j + 1;
-%         valss(j)    = vals(i);
-%         ix(j)       = i;
-%     end
-% end
-% valss = valss(1:j);
-% ix = ix(1:j);
 end
 
 function test

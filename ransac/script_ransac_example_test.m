@@ -28,7 +28,7 @@ nRansacIter = log(1-p)/log(1-(1-e)^s); % nIter>= that number
 
 numPoints   = 7; % 14
 Nfab        = 9;
-degNoiseStd = 4;
+degNoiseStd = 7;
 r0          = 85; % distance to observers
 numObserv   = 2;
 tscale      = 10; % object feature displacement scale
@@ -47,7 +47,7 @@ set(groot, 'defaultLegendItemHitFcn', @LegendItemHitFnc);
 
 
 %% plot figures
-iseucl          = 1;
+iseucl          = 0;
 isplot          = 1;
 isconvert2uv    = 0;
 ix3r            = randsample(1:numPoints, numPoints); % shuffle points

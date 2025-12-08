@@ -6,7 +6,7 @@ for i=1:N
     for j=i+1:N
         if iseuclid
             d(k) = sum((a(i,:)-a(j,:)).^2);
-        else
+        else % manhattan distance
             d(k) = sum(abs(a(i,:)-a(j,:)));
         end
         k = k+1;
